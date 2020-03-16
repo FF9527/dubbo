@@ -56,7 +56,12 @@ public class LeastActiveLoadBalance extends AbstractLoadBalance {
         boolean sameWeight = true;
 
 
-        // Filter out all the least active invokers
+        //筛选出最不活跃的节点，
+        //给每个节点方法创建一个RpcStatus实例，用于记录节点方法活跃性Map<url,<methodName,rpcStatus>>
+        //找到最小活跃的节点，将它的数组下标，放入数组leastIndexes中
+        //leastIndexes大小为1时，最小活跃节点仅一个，直接返回
+        //leastIndexes大小大于1时，最小活跃节点多个，然后用Random类似方法，从多个最小活跃节点中，随机返回一个节点
+        //所有节点活跃性相同时，Random随机返回一个节点
         for (int i = 0; i < length; i++) {
             Invoker<T> invoker = invokers.get(i);
             // Get the active number of the invoker

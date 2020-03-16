@@ -110,6 +110,7 @@ public class ExtensionLoader<T> {
 
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<>();
 
+    //
     private static LoadingStrategy DUBBO_INTERNAL_STRATEGY =  () -> DUBBO_INTERNAL_DIRECTORY;
     private static LoadingStrategy DUBBO_STRATEGY = () -> DUBBO_DIRECTORY;
     private static LoadingStrategy SERVICES_STRATEGY = () -> SERVICES_DIRECTORY;
@@ -729,10 +730,18 @@ public class ExtensionLoader<T> {
      * synchronized in getExtensionClasses
      * */
     private Map<String, Class<?>> loadExtensionClasses() {
+        //缓存默认扩展名
         cacheDefaultExtensionName();
 
         Map<String, Class<?>> extensionClasses = new HashMap<>();
 
+        //扩展点发现机制，扫描strategies中type.getName()文件下的类
+        //这里strategies指向三个路径：
+        // ① META-INF/dubbo/
+        // ② META-INF/dubbo/internal/
+        // ③ META-INF/services/
+        // strategy.preferExtensionClassLoader() == false
+        // strategy.excludedPackages() == null
         for (LoadingStrategy strategy : strategies) {
             loadDirectory(extensionClasses, strategy.directory(), type.getName(), strategy.preferExtensionClassLoader(), strategy.excludedPackages());
             loadDirectory(extensionClasses, strategy.directory(), type.getName().replace("org.apache", "com.alibaba"), strategy.preferExtensionClassLoader(), strategy.excludedPackages());
@@ -772,12 +781,14 @@ public class ExtensionLoader<T> {
         String fileName = dir + type;
         try {
             Enumeration<java.net.URL> urls = null;
+            //获取类加载器
             ClassLoader classLoader = findClassLoader();
             
             // try to load from ExtensionLoader's ClassLoader first
             if (extensionLoaderClassLoaderFirst) {
                 ClassLoader extensionLoaderClassLoader = ExtensionLoader.class.getClassLoader();
                 if (ClassLoader.getSystemClassLoader() != extensionLoaderClassLoader) {
+                    //获取所有fileName的绝对路径
                     urls = extensionLoaderClassLoader.getResources(fileName);
                 }
             }
@@ -791,8 +802,10 @@ public class ExtensionLoader<T> {
             }
 
             if (urls != null) {
+                //遍历所有路径下的fileName文件
                 while (urls.hasMoreElements()) {
                     java.net.URL resourceURL = urls.nextElement();
+                    //文件一行行解析
                     loadResource(extensionClasses, classLoader, resourceURL, excludedPackages);
                 }
             }

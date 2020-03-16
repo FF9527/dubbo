@@ -30,28 +30,28 @@ public abstract class AbstractMethodConfig extends AbstractConfig {
     private static final long serialVersionUID = 1L;
 
     /**
-     * The timeout for remote invocation in milliseconds
+     * RPC超时时间，默认1000ms，性能优化属性
      */
     protected Integer timeout;
 
     /**
-     * The retry times
+     * RPC重试次数，不包含第一次调用，默认2次，性能优化属性
      */
     protected Integer retries;
 
     /**
-     * max concurrent invocations
+     * 最大连接次数，默认100次，对于rmi、http、hassian等短连接，这是连接限制，对于dubbo等长连接，这是连接计数，性能优化属性
      */
     protected Integer actives;
 
     /**
-     * The load balance
+     * 负载均衡策略：默认随机策略，可选策略random：随机、roundrobin：轮询、leastactive：根据服务器性能均衡。性能优化属性
      */
     protected String loadbalance;
 
     /**
-     * Whether to async
-     * note that: it is an unreliable asynchronism that ignores return values and does not block threads.
+     * 异步执行，不可靠
+     *  不会阻塞执行线程，但会忽略返回值
      */
     protected Boolean async;
 

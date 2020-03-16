@@ -118,8 +118,9 @@ public class RoundRobinLoadBalance extends AbstractLoadBalance {
         if (!updateLock.get() && invokers.size() != map.size()) {
             if (updateLock.compareAndSet(false, true)) {
                 try {
-                    // copy -> modify -> update reference
+                    // 写时复制策略
                     ConcurrentMap<String, WeightedRoundRobin> newMap = new ConcurrentHashMap<>(map);
+                    // 解决倾斜，invoker超过60s未调用，提高优先级
                     newMap.entrySet().removeIf(item -> now - item.getValue().getLastUpdate() > RECYCLE_PERIOD);
                     methodWeightMap.put(key, newMap);
                 } finally {

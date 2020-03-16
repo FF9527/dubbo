@@ -45,6 +45,8 @@ public class InvokerInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        //Object的方法，直接调用本地
+        //其他方法RPC
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
         }
@@ -62,7 +64,10 @@ public class InvokerInvocationHandler implements InvocationHandler {
         } else if (parameterTypes.length == 1 && "equals".equals(methodName)) {
             return invoker.equals(args[0]);
         }
+        //封装一个RpcInvocation实例其实就是request
+        //RpcInvocation记录RPC调用信息，interface-method(args)
         RpcInvocation rpcInvocation = new RpcInvocation(method, invoker.getInterface().getName(), args);
+        //记录serviceKey  group+interface+version
         String serviceKey = invoker.getUrl().getServiceKey();
         rpcInvocation.setTargetServiceUniqueName(serviceKey);
       

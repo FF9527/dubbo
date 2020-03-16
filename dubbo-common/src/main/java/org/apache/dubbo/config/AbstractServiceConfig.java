@@ -36,12 +36,12 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
     private static final long serialVersionUID = 1L;
 
     /**
-     * The service version
+     * 服务版本。默认0.0.0，服务发现属性
      */
     protected String version;
 
     /**
-     * The service group
+     * 服务组。多个工具时，可以区分服务，服务发现属性
      */
     protected String group;
 
@@ -51,7 +51,7 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
     protected Boolean deprecated = false;
 
     /**
-     * The time delay register service (milliseconds)
+     * 服务注册的延迟时间，默认0。设置-1时，springioc初始化时注册到注册表，性能优化属性
      */
     protected Integer delay;
 

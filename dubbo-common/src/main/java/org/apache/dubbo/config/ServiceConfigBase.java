@@ -44,7 +44,7 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
     private static final long serialVersionUID = 3033787999037024738L;
 
     /**
-     * The interface name of the exported service
+     * 必须设置，服务接口名称，服务发现属性
      */
     protected String interfaceName;
 
@@ -54,12 +54,12 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
     protected Class<?> interfaceClass;
 
     /**
-     * The reference of the interface implementation
+     * 必须设置，服务接口实现类的Bean实例，服务发现属性
      */
     protected T ref;
 
     /**
-     * The service name
+     * 服务路径。默认为接口名称，服务发现属性
      */
     protected String path;
 

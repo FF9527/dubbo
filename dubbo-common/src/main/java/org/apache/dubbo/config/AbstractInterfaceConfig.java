@@ -58,6 +58,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     protected String local;
 
     /**
+     * 使用默认代理类名称，stub+
      * Local stub class name for the service interface
      */
     protected String stub;

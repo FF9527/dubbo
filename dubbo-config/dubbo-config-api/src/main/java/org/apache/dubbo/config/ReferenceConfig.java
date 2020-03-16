@@ -155,6 +155,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             throw new IllegalStateException("The invoker of ReferenceConfig(" + url + ") has already destroyed!");
         }
         if (ref == null) {
+            //懒加载，初始化
             init();
         }
         return ref;
@@ -189,12 +190,26 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             bootstrap = DubboBootstrap.getInstance();
             bootstrap.init();
         }
-
+        //检查并更新子设置
         checkAndUpdateSubConfigs();
 
+        //检查若配置了local或stub，localClass或stubClass必须是interfaceClass的子类
         checkStubAndLocal(interfaceClass);
+        //检查熔断接口
         ConfigValidationUtils.checkMock(interfaceClass, this);
 
+        // map初始化一些属性,用途：设置到serviceMetadata（元数据）中；生成consumerUrl
+        // map.put("init","false")
+        // map.put("side","consumer")
+        // map.put("application","dubbo-consumer")
+        // map.put("register.ip","192.168.56.1")
+        // map.put("release","2.7.5")
+        // map.put("methods","insertUser,updateUser")
+        // map.put("sticky","false")
+        // map.put("dubbo","2.0.2")
+        // map.put("pid","8748")
+        // map.put("interface","org.study.service.UserService")
+        // map.put("timestamp","1584282015078")
         Map<String, String> map = new HashMap<String, String>();
         map.put(SIDE_KEY, CONSUMER_SIDE);
 
@@ -253,18 +268,21 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         }
         map.put(REGISTER_IP_KEY, hostToRegistry);
 
+        //map数据放入到元数据中
         serviceMetadata.getAttachments().putAll(map);
 
+        //创建引用代理
         ref = createProxy(map);
 
+        //设置到元数据中
         serviceMetadata.setTarget(ref);
         serviceMetadata.addAttribute(PROXY_CLASS_REF, ref);
         ConsumerModel consumerModel = repository.lookupReferredService(serviceMetadata.getServiceKey());
         consumerModel.setProxyObject(ref);
         consumerModel.init(attributes);
-
+        //修改哨兵位，已初始化
         initialized = true;
-
+        //后置持利器执行等
         // dispatch a ReferenceConfigInitializedEvent since 2.7.4
         dispatch(new ReferenceConfigInitializedEvent(this, invoker));
     }
@@ -272,14 +290,17 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
         if (shouldJvmRefer(map)) {
+            //injvm，jvm内的互相调用
             URL url = new URL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
             invoker = REF_PROTOCOL.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
             }
         } else {
+            //jvm外调用
             urls.clear();
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
+                //<dubbo:reference url="*"/>  自定义url
                 String[] us = SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
                     for (String u : us) {
@@ -295,7 +316,8 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     }
                 }
             } else { // assemble URL from register center's configuration
-                // if protocols not injvm checkRegistry
+                // 未自定义url、自动生成url
+                //注册中心地址RegisteyUrl：registry://mcip:2291/org.apache.dubbo.registry.RegistryService?application=dubbo-consumer&backup=mcip:2292,mcip:2293&dubbo=2.0.2&pid=8748&registry=zookeeper&release=2.7.5&timestamp=1584282824127
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())) {
                     checkRegistry();
                     List<URL> us = ConfigValidationUtils.loadRegistries(this, false);
@@ -315,8 +337,11 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             }
 
             if (urls.size() == 1) {
+                //注册中心只有一个时
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
             } else {
+                //注册中心多个时
+                //获取所有的远程服务地址
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
                 for (URL url : urls) {
@@ -361,7 +386,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             URL consumerURL = new URL(CONSUMER_PROTOCOL, map.remove(REGISTER_IP_KEY), 0, map.get(INTERFACE_KEY), map);
             metadataService.publishServiceDefinition(consumerURL);
         }
-        // create service proxy
+        // 创建服务代理，默认javassist方式
         return (T) PROXY_FACTORY.getProxy(invoker, ProtocolUtils.isGeneric(generic));
     }
 
@@ -373,6 +398,8 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         if (StringUtils.isEmpty(interfaceName)) {
             throw new IllegalStateException("<dubbo:reference interface=\"\" /> interface not allow null!");
         }
+        // 使用全局范围显式定义的默认配置
+        // <dubbo:consumer/> <dubbo:protocol/>
         completeCompoundConfigs(consumer);
         if (consumer != null) {
             if (StringUtils.isEmpty(registryIds)) {
@@ -381,23 +408,29 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         }
         // get consumer's global configuration
         checkDefault();
+        //environment中的值覆盖属性
         this.refresh();
         if (getGeneric() == null && getConsumer() != null) {
             setGeneric(getConsumer().getGeneric());
         }
         if (ProtocolUtils.isGeneric(generic)) {
+            //如果实际Bean实现了GenericService接口，
+            //interfaceClass = GenericService.class
             interfaceClass = GenericService.class;
         } else {
             try {
+                //不是GenericService接口类型，根据interfaceClass = Class.forName(interfaceName)
                 interfaceClass = Class.forName(interfaceName, true, Thread.currentThread()
                         .getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            //检查接口方法
             checkInterfaceAndMethods(interfaceClass, getMethods());
         }
 
-        //init serivceMetadata
+        //初始化reference的本地代理service的属性。
+        //version group interface serviceKey
         serviceMetadata.setVersion(version);
         serviceMetadata.setGroup(group);
         serviceMetadata.setDefaultGroup(group);
@@ -407,16 +440,20 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         serviceMetadata.setServiceKey(URL.buildKey(interfaceName, group, version));
 
         ServiceRepository repository = ApplicationModel.getServiceRepository();
+        //将reference的接口Service注册到服务仓库ServiceRepository中的services容器中
         ServiceDescriptor serviceDescriptor = repository.registerService(interfaceClass);
+        //将reference的接口Service注册到服务仓库ServiceRepository中的consumers容器中
         repository.registerConsumer(
                 serviceMetadata.getServiceKey(),
                 serviceDescriptor,
                 this,
                 null,
                 serviceMetadata);
-
+        //本地缓存文件配置
         resolveFile();
+        //检查ReferenceConfig的属性
         ConfigValidationUtils.validateReferenceConfig(this);
+        //配置后置处理器ConfigPostProcess,类似于BeanPostProcessor
         postProcessConfig();
     }
 

@@ -281,12 +281,14 @@ public class DubboProtocol extends AbstractProtocol {
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         URL url = invoker.getUrl();
 
-        // export service.
+        //key = org.study.service.UserService:20880
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
 
         //export an stub service for dispatching event
+        //默认isStubSupportEvent == false
+        //默认isCallbackservice == false
         Boolean isStubSupportEvent = url.getParameter(STUB_EVENT_KEY, DEFAULT_STUB_EVENT);
         Boolean isCallbackservice = url.getParameter(IS_CALLBACK_SERVICE, false);
         if (isStubSupportEvent && !isCallbackservice) {
@@ -299,8 +301,9 @@ public class DubboProtocol extends AbstractProtocol {
 
             }
         }
-
+        //开始服务
         openServer(url);
+        //序列化
         optimizeSerialization(url);
 
         return exporter;

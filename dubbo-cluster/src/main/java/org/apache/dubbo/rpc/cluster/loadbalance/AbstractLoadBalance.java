@@ -46,7 +46,7 @@ public abstract class AbstractLoadBalance implements LoadBalance {
      * @return weight which takes warmup into account
      */
     static int calculateWarmupWeight(int uptime, int warmup, int weight) {
-        int ww = (int) ( uptime / ((float) warmup / weight));
+        int ww = (int) ( uptime / ((float) warmup / weight));//uptime/warmup * weight
         return ww < 1 ? 1 : (Math.min(ww, weight));
     }
 
@@ -87,8 +87,10 @@ public abstract class AbstractLoadBalance implements LoadBalance {
                     if (uptime < 0) {
                         return 1;
                     }
+                    //获取预热时间，默认10分钟
                     int warmup = invoker.getUrl().getParameter(WARMUP_KEY, DEFAULT_WARMUP);
                     if (uptime > 0 && uptime < warmup) {
+                        //预热时间内，降低权重，避免刚启动，请求负载导致启动失败
                         weight = calculateWarmupWeight((int)uptime, warmup, weight);
                     }
                 }

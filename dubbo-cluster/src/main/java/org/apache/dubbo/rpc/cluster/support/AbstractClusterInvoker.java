@@ -245,15 +245,17 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
 
     @Override
     public Result invoke(final Invocation invocation) throws RpcException {
+        //检查本地服务是否已销毁
         checkWhetherDestroyed();
 
-        // binding attachments into invocation.
+        // 绑定attachments到invocation中，默认空，跳过
         Map<String, Object> contextAttachments = RpcContext.getContext().getObjectAttachments();
         if (contextAttachments != null && contextAttachments.size() != 0) {
             ((RpcInvocation) invocation).addObjectAttachments(contextAttachments);
         }
-
+        //获取所有的providers
         List<Invoker<T>> invokers = list(invocation);
+        //负载均衡策略  默认random
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
         return doInvoke(invocation, invokers, loadbalance);
