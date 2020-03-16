@@ -43,12 +43,14 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //检查invokers不能为空
         checkInvokers(invokers, invocation);
         RpcContext.getContext().setInvokers((List) invokers);
         RpcException exception = null;
         Result result = null;
         for (Invoker<T> invoker : invokers) {
             try {
+                //遍历调用
                 result = invoker.invoke(invocation);
             } catch (RpcException e) {
                 exception = e;
@@ -58,6 +60,7 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 logger.warn(e.getMessage(), e);
             }
         }
+        //有一个invoker调用抛错，则抛出错误
         if (exception != null) {
             throw exception;
         }

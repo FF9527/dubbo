@@ -63,13 +63,16 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         try {
+            //检查invokers不能为空
             checkInvokers(invokers, invocation);
             final List<Invoker<T>> selected;
             final int forks = getUrl().getParameter(FORKS_KEY, DEFAULT_FORKS);
             final int timeout = getUrl().getParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
             if (forks <= 0 || forks >= invokers.size()) {
+                //并发数forks大于invokers.size()时，并发调用所有invoker
                 selected = invokers;
             } else {
+                //并发数forks小于invokers.size()时，调用负载均衡策略选取的forks个invoker
                 selected = new ArrayList<>();
                 for (int i = 0; i < forks; i++) {
                     Invoker<T> invoker = select(loadbalance, invocation, invokers, selected);
@@ -85,7 +88,9 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
             for (final Invoker<T> invoker : selected) {
                 executor.execute(() -> {
                     try {
+                        //并发调用，报错忽略
                         Result result = invoker.invoke(invocation);
+                        //创建一个队列，存储返回结果
                         ref.offer(result);
                     } catch (Throwable e) {
                         int value = count.incrementAndGet();
@@ -96,13 +101,17 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 });
             }
             try {
+                //取队首元素（结果），设置超时时间
                 Object ret = ref.poll(timeout, TimeUnit.MILLISECONDS);
                 if (ret instanceof Throwable) {
+                    //正常的报错抛出错误
                     Throwable e = (Throwable) ret;
                     throw new RpcException(e instanceof RpcException ? ((RpcException) e).getCode() : 0, "Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e.getCause() != null ? e.getCause() : e);
                 }
+                //调用成功返回
                 return (Result) ret;
             } catch (InterruptedException e) {
+                //超时抛错
                 throw new RpcException("Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e);
             }
         } finally {

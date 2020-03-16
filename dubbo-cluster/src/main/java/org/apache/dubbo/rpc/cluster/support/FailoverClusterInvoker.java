@@ -70,8 +70,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyInvokers.size()); // invoked invokers.
         Set<String> providers = new HashSet<String>(len);
         for (int i = 0; i < len; i++) {
-            //Reselect before retry to avoid a change of candidate `invokers`.
-            //NOTE: if `invokers` changed, then `invoked` also lose accuracy.
+            //失败重试，成功返回
             if (i > 0) {
                 //再次检查invokers.destroyed
                 checkWhetherDestroyed();
@@ -97,7 +96,9 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             + " using the dubbo version " + Version.getVersion() + ". Last error is: "
                             + le.getMessage(), le);
                 }
+                //成功返回
                 return result;
+                //catch报错，失败重试
             } catch (RpcException e) {
                 if (e.isBiz()) { // biz exception.
                     throw e;
